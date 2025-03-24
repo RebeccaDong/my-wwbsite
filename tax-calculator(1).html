@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期权收入个人所得税计算器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result h3 {
+            margin-top: 0;
+        }
+        .result p {
+            margin: 5px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>期权收入个人所得税计算器</h1>
+        <div class="input-group">
+            <label for="transactionPrice">交易价格（港币）：</label>
+            <input type="number" id="transactionPrice" placeholder="请输入交易价格">
+        </div>
+        <div class="input-group">
+            <label for="costPrice">成本价格（港币）：</label>
+            <input type="number" id="costPrice" placeholder="请输入成本价格">
+        </div>
+        <div class="input-group">
+            <label for="quantity">交易数量（500的倍数）：</label>
+            <input type="number" id="quantity" placeholder="请输入交易数量">
+        </div>
+        <div class="input-group">
+            <label for="exchangeRate">当前汇率（港币兑换人民币）：</label>
+            <input type="number" id="exchangeRate" placeholder="请输入汇率">
+        </div>
+        <button onclick="calculateTax()">计算</button>
+
+        <div class="result" id="result" style="display: none;">
+            <h3>计算结果（此工具仅用于测算，未考虑交易费用及汇率调整与实际结果会有略微差异）</h3>
+            <p><strong>收入（人民币）：</strong> <span id="incomeResult"></span></p >
+            <p><strong>适用税率（%）：</strong> <span id="taxRateResult"></span></p >
+            <p><strong>所得税（人民币）：</strong> <span id="taxResult"></span></p >
+            <p><strong>按照当前价格测算每一级税率对应的交易数量上限：</strong></p >
+            <ul id="quantityLimitsResult"></ul>
+        </div>
+    </div>
+<script>
+    function calculateTax() {
+    // 获取输入值
+    const transactionPrice = parseFloat(document.getElementById('transactionPrice').value);
+    const costPrice = parseFloat(document.getElementById('costPrice').value);
+    const quantity = parseFloat(document.getElementById('quantity').value);
+    const exchangeRate = parseFloat(document.getElementById('exchangeRate').value);
+
+    // 计算收入（人民币）
+    const incomeCNY = (transactionPrice - costPrice) * quantity * exchangeRate;
+
+    // 个人所得税累进税率表
+    const taxBrackets = [
+        { limit: 36000, rate: 0.03, deduction: 0 },
+        { limit: 144000, rate: 0.10, deduction: 2520 },
+        { limit: 300000, rate: 0.20, deduction: 16920 },
+        { limit: 420000, rate: 0.25, deduction: 31920 },
+        { limit: 660000, rate: 0.30, deduction: 52920 },
+        { limit: 960000, rate: 0.35, deduction: 85920 },
+        { limit: Infinity, rate: 0.45, deduction: 181920 },
+    ];
+
+    // 计算所得税
+    let tax = 0;
+    for (const bracket of taxBrackets) {
+        if (incomeCNY <= bracket.limit) {
+            tax = incomeCNY * bracket.rate - bracket.deduction;
+            break;
+        }
+    }
+
+    // 计算每一级税率对应的交易数量上限
+    const quantityLimits = taxBrackets.map(bracket => {
+        if (bracket.limit === Infinity) {
+            return { rate: bracket.rate * 100, incomeLimit:"无上限",limit: "无上限" };
+        } else {
+            // 计算交易数量上限
+            const limitQuantity = Math.round(bracket.limit / ((transactionPrice - costPrice) * exchangeRate )) ;
+            return { rate: bracket.rate * 100,incomeLimit:bracket.limit,limit: limitQuantity };
+        }
+    });
+
+    // 显示结果
+    document.getElementById('incomeResult').textContent = incomeCNY.toFixed(2);
+    document.getElementById('taxRateResult').textContent = (taxBrackets.find(bracket => incomeCNY <= bracket.limit).rate * 100);
+    document.getElementById('taxResult').textContent = tax.toFixed(2);
+
+    const quantityLimitsList = document.getElementById('quantityLimitsResult');
+    quantityLimitsList.innerHTML = quantityLimits.map(item => `
+        <li>税率 ${item.rate}%:收入上限为${item.incomeLimit},交易数量上限为 ${item.limit}</li>
+    `).join('');
+
+    document.getElementById('result').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
